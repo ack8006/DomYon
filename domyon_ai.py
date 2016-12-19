@@ -1,6 +1,7 @@
 from __future__ import division
 
 import sys
+sys.dont_write_bytecode = True
 import inspect
 from collections import defaultdict
 
@@ -13,13 +14,20 @@ class Domyon(object):
         self.card_dict = card_dict
 
     def action_choice(self, player_info):
-        if 'Laboratory' in player_info.actions_available:
-            return 'Laboratory'
-        elif 'Smithy' in player_info.actions_available:
+    #First, look for any card that provides additional actions, order not as important currently 
+        for c in player_info.actions_available:
+            if self.card_dict[c].gain_actions >= 1:
+                return c
+        #Otherwise, play card that give best expected value
+        #Should consider number of remaining actions, if 2+ perhaps plays smithy to have chance of more actions
+        #if not, simple best next card
+
+        if 'Smithy' in player_info.actions_available:
             return 'Smithy'
 
     def buy_choice(self, player_info):
-        available_cards = player_info.bank.keys()
+        available_cards = list(filter(lambda x: self.card_dict[x].cost <= player_info.treasure, 
+                                      player_info.bank.keys()))
 
         average_scores = defaultdict(int)
         average_scores[None] = self.avg_hand_value(player_info)[1]
@@ -42,41 +50,42 @@ class Domyon(object):
     def avg_hand_value(self, player_info, cards=None, its = 5000):
         scores = defaultdict(int)
         for x in xrange(its):
-            scores[self.hand_value(player_info, cards)] += 1
+            p = Player()
+            p.discard = [x for x in player_info.deck]
+            p.deck = []
+            if cards:
+                p.discard += cards
+            p.draw_cards(5)
+            p.treasure = 0
+            p.actions_remaining = 1
+
+            scores[self.hand_value(p, cards)] += 1
+            del p
         return scores, sum(k*v for k,v in scores.iteritems()) / sum(v for v in scores.values())
 
-    def hand_value(self, player_info, cards=None):
-        p = Player()
-        p.discard = [x for x in player_info.deck]
-        if cards:
-            p.discard += cards
-        p.draw_cards(5)
-
-        p.actions_remaining = 1
-
+    '''Given full info, will calculated hand value based on player info parameters'''
+    def hand_value(self, p, cards=None):
         while p.actions_remaining > 0:
             p.actions_available = [x for x in p.hand if self.card_dict[x].grouping == 'Action']
             action = self.action_choice(p)
             if not action:
                 break
             action = self.card_dict[self.action_choice(p)]
-            player_info = self.update_player_info(p, action)
+            p = self.update_player(p, action)
 
         total_val = 0
         total_val += sum([self.card_dict[x].treasure for x in p.hand if self.card_dict[x].grouping == 'Treasure'])
-        #total_val += p.treasure
+        total_val += p.treasure
 
         return total_val
 
-    def update_player_info(self, player_info, card):
-        player_info.hand.remove(card.name)
-        player_info.actions_remaining += -1 + card.gain_actions
-        player_info.draw_cards(card.draw_cards)
-        #player_info.buys += card.gain_buys
-        #player_info.treasure += card.treasure
-        return player_info
-
-
+    def update_player(self, p, card):
+        p.hand.remove(card.name)
+        p.actions_remaining += -1 + card.gain_actions
+        p.draw_cards(card.draw_cards)
+        #p.buys += card.gain_buys
+        p.treasure += card.gain_treasure
+        return p
 
 def get_card_dict():
     card_dict = {}
@@ -89,10 +98,17 @@ def main():
     card_dict = get_card_dict()
 
     player_info = Player()
-    player_info.deck = ['Copper'] * 7 + ['Estate'] * 3
-    player_info.bank = {"Smithy": 10, "Village": 10, 'Copper':30, 'Silver':30, 'Gold':5}
-    player_info.bank = {'Silver':30, 'Gold':10, 'Smithy':30, 'Copper':10}
-    player_info.treasure = 5
+    player_info.deck = ['Copper'] * 7 + ['Estate'] * 3 #+ ['Smithy'] * 1+ ['Silver'] * 1
+    player_info.bank = {'Copper': 10,
+                        'Silver':30,
+                        #'Gold':10,
+                        'Festival': 10,
+                        'Laboratory': 10,
+                        'Market': 10,
+                        'Smithy':10,
+                        'Village':10,
+                       }
+    player_info.treasure = 4
 
     d = Domyon(card_dict)
     #print d.hand_value(player_info, ['Smithy'])
