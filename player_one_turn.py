@@ -1,8 +1,11 @@
 __author__ = 'stevenkerr'
 import card_classes
 import player_one_alg
+#from domyon_ai import Domyon 
 import player_two_alg
+#import player_one_alg_orig as player_two_alg
 from random import shuffle
+
 
 class Player_info():
     def __init__(self):

@@ -160,6 +160,8 @@ def play_game(player_one, player_two):
     game_result.player_two_turns = player_two_turns
     game_result.player_one_points = player_one.victory_count()
     game_result.player_two_points = player_two.victory_count()
+    print game_result.player_one_points
+    print game_result.player_two_points
     return game_result
 
 
@@ -232,4 +234,4 @@ def play_game_two(num):
 
 #How to run a game
 
-# play_game_two(1000)
+play_game_two(50)
